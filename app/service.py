@@ -15,6 +15,7 @@ from .conversation import (
     parse_slot_value,
 )
 from .conversation_agent import ConversationAgent
+from .conversation_agent import ConversationLLMError
 from .dedupe import SimilarityEngine
 from .git_publisher import GitPublisher
 from .models import ModelValidationError, SkillBriefV1
@@ -120,6 +121,7 @@ class SkillDraftService:
         return result
 
     def start_conversation(self, payload: dict[str, Any]) -> dict[str, Any]:
+        self._ensure_conversation_llm_ready()
         session_id = uuid.uuid4().hex[:12]
         slots = default_slots()
 
@@ -144,6 +146,7 @@ class SkillDraftService:
         return self._conversation_turn(session, intro=True)
 
     def answer_conversation(self, session_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        self._ensure_conversation_llm_ready()
         session = self.session_store.load(session_id)
         if session.get("status") == "completed":
             return {
@@ -278,13 +281,24 @@ class SkillDraftService:
         slots = session.get("slots", default_slots())
         slot = current_slot(slots)
         progress = completeness(slots)
-        turn = self.conversation_agent.generate_turn(
-            slots=slots,
-            history=session.get("history", []),
-            current_slot=slot,
-            intro=intro,
-            uncertain=uncertain,
-        )
+        try:
+            turn = self.conversation_agent.generate_turn(
+                slots=slots,
+                history=session.get("history", []),
+                current_slot=slot,
+                intro=intro,
+                uncertain=uncertain,
+            )
+        except ConversationLLMError as exc:
+            raise ModelValidationError(
+                [
+                    {
+                        "field": "conversation_llm",
+                        "message": "会话 LLM 当前不可用，强制模式下无法继续。",
+                        "suggestion": "请检查 SKILLMD_CONVERSATION_LLM_ENDPOINT / SKILLMD_LLM_ENDPOINT 是否可用后重试。",
+                    }
+                ]
+            ) from exc
         return {
             "session_id": session["session_id"],
             "assistant_message": turn.get("assistant_message", ""),
@@ -314,3 +328,15 @@ class SkillDraftService:
                 }
             ]
         )
+
+    def _ensure_conversation_llm_ready(self) -> None:
+        if self.conversation_agent.strict_mode and not self.conversation_agent.is_llm_ready():
+            raise ModelValidationError(
+                [
+                    {
+                        "field": "conversation_llm",
+                        "message": "强制模式已开启，但未配置会话 LLM 接口。",
+                        "suggestion": "请设置 SKILLMD_CONVERSATION_LLM_ENDPOINT（或 SKILLMD_LLM_ENDPOINT）后再开始对话。",
+                    }
+                ]
+            )

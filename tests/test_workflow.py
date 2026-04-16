@@ -6,6 +6,7 @@ import uuid
 from pathlib import Path
 
 from app.models import ModelValidationError
+from app.conversation_agent import ConversationAgent
 from app.service import SkillDraftService
 from app.spec_builder import SkillSpecBuilder
 from app.store import DraftStore
@@ -43,6 +44,7 @@ class SkillMDWorkflowTests(unittest.TestCase):
             registry_path=self.registry,
             session_store=self.sessions,
             spec_builder=SkillSpecBuilder(llm_endpoint=None),
+            conversation_agent=ConversationAgent(llm_endpoint=None, strict_mode=False),
         )
 
     def tearDown(self) -> None:
@@ -133,6 +135,20 @@ class SkillMDWorkflowTests(unittest.TestCase):
         filename, content = self.service.get_skill_md_download(draft["draft_id"])
         self.assertTrue(filename.endswith("-skill.md"))
         self.assertIn("## Overview", content)
+
+    def test_strict_mode_requires_llm_endpoint(self) -> None:
+        strict_service = SkillDraftService(
+            store=self.store,
+            registry_path=self.registry,
+            session_store=self.sessions,
+            spec_builder=SkillSpecBuilder(llm_endpoint=None),
+            conversation_agent=ConversationAgent(llm_endpoint=None, strict_mode=True),
+        )
+        with self.assertRaises(ModelValidationError) as ctx:
+            strict_service.start_conversation({})
+        report = ctx.exception.to_dict()
+        self.assertFalse(report["pass"])
+        self.assertTrue(any("conversation_llm" in item for item in report.get("errors", [])))
 
 
 if __name__ == "__main__":

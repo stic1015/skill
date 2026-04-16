@@ -9,12 +9,30 @@ from typing import Any
 from .conversation import SLOT_OPTIONS, SLOT_QUESTIONS
 
 
+class ConversationLLMError(RuntimeError):
+    pass
+
+
 class ConversationAgent:
-    def __init__(self, llm_endpoint: str | None = None, timeout_seconds: int = 15):
+    def __init__(
+        self,
+        llm_endpoint: str | None = None,
+        timeout_seconds: int = 15,
+        strict_mode: bool | None = None,
+    ):
         self.llm_endpoint = llm_endpoint or os.environ.get("SKILLMD_CONVERSATION_LLM_ENDPOINT") or os.environ.get(
             "SKILLMD_LLM_ENDPOINT"
         )
         self.timeout_seconds = timeout_seconds
+        env_strict = os.environ.get("SKILLMD_CONVERSATION_STRICT", "1")
+        self.strict_mode = self._parse_bool(env_strict) if strict_mode is None else strict_mode
+
+    @staticmethod
+    def _parse_bool(value: str) -> bool:
+        return str(value).strip().lower() not in {"0", "false", "no", "off", ""}
+
+    def is_llm_ready(self) -> bool:
+        return isinstance(self.llm_endpoint, str) and bool(self.llm_endpoint.strip())
 
     def generate_turn(
         self,
@@ -25,7 +43,7 @@ class ConversationAgent:
         intro: bool,
         uncertain: bool,
     ) -> dict[str, Any]:
-        if self.llm_endpoint:
+        if self.is_llm_ready():
             llm_turn = self._generate_with_llm(
                 slots=slots,
                 history=history,
@@ -35,6 +53,11 @@ class ConversationAgent:
             )
             if llm_turn is not None:
                 return llm_turn
+            if self.strict_mode:
+                raise ConversationLLMError("conversation_llm_failed")
+        elif self.strict_mode:
+            raise ConversationLLMError("conversation_llm_not_configured")
+
         return self._generate_with_rules(current_slot=current_slot, intro=intro, uncertain=uncertain)
 
     def _generate_with_llm(

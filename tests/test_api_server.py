@@ -23,10 +23,12 @@ class SkillMDApiServerTests(unittest.TestCase):
             "SKILLMD_DRAFT_DIR": os.environ.get("SKILLMD_DRAFT_DIR"),
             "SKILLMD_SESSION_DIR": os.environ.get("SKILLMD_SESSION_DIR"),
             "SKILLMD_REGISTRY_PATH": os.environ.get("SKILLMD_REGISTRY_PATH"),
+            "SKILLMD_CONVERSATION_STRICT": os.environ.get("SKILLMD_CONVERSATION_STRICT"),
         }
         os.environ["SKILLMD_DRAFT_DIR"] = str(self.case_dir / "drafts")
         os.environ["SKILLMD_SESSION_DIR"] = str(self.case_dir / "sessions")
         os.environ["SKILLMD_REGISTRY_PATH"] = str(self.case_dir / "registry")
+        os.environ["SKILLMD_CONVERSATION_STRICT"] = "0"
 
         self.server = create_server(host="127.0.0.1", port=0)
         self.port = self.server.server_address[1]
@@ -95,4 +97,3 @@ class SkillMDApiServerTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
