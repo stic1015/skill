@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 data/
 .tmp-tests/
+
+.vercel
+backend*.log
+tunnel*.log

@@ -1,174 +1,234 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SkillMD 能力生成器 MVP</title>
+  <title>SkillMD 对话式生成器</title>
   <style>
     :root {
-      --bg: #f4f2eb;
-      --panel: #fffdfa;
+      --bg: #f3efe3;
+      --card: #fffdf7;
       --ink: #1f2933;
       --muted: #52606d;
       --accent: #0b6e4f;
-      --accent-soft: #cde6dd;
-      --border: #d9d5ca;
+      --line: #d8d2c0;
+      --assistant: #eef7f3;
+      --user: #f1f2ff;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: radial-gradient(circle at 10% 15%, #fff9f0 0%, var(--bg) 52%);
       color: var(--ink);
-      background: radial-gradient(circle at 20% 20%, #fff8ef 0%, var(--bg) 56%);
-      min-height: 100vh;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
     }
     .wrap {
-      max-width: 1080px;
-      margin: 24px auto 40px;
-      padding: 0 16px;
+      max-width: 980px;
+      margin: 24px auto;
+      padding: 0 14px;
       display: grid;
-      gap: 16px;
-    }
-    .panel {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 18px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
-    }
-    h1 {
-      margin: 0 0 8px;
-      font-size: 28px;
-      letter-spacing: 0.3px;
-    }
-    p { margin: 0; color: var(--muted); }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 12px;
     }
-    .full { grid-column: 1 / -1; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.04);
+    }
+    h1 {
+      margin: 0 0 6px;
+      font-size: 26px;
+    }
+    p { margin: 0; color: var(--muted); }
     label {
       display: block;
-      font-size: 13px;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
       color: var(--muted);
+      font-size: 13px;
     }
     input, textarea {
       width: 100%;
-      border: 1px solid var(--border);
-      background: #ffffff;
+      border: 1px solid var(--line);
+      background: #fff;
       border-radius: 10px;
       padding: 10px 12px;
       color: var(--ink);
       font-size: 14px;
     }
-    textarea { min-height: 86px; resize: vertical; }
-    .actions {
-      display: flex;
-      flex-wrap: wrap;
+    textarea { min-height: 74px; resize: vertical; }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       gap: 10px;
-      margin-top: 8px;
     }
+    .chat {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      min-height: 350px;
+      max-height: 52vh;
+      overflow: auto;
+      padding: 10px;
+      background: #fff;
+      display: grid;
+      gap: 8px;
+    }
+    .msg {
+      padding: 10px 12px;
+      border-radius: 10px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+    .assistant { background: var(--assistant); border: 1px solid #d3ebdf; }
+    .user { background: var(--user); border: 1px solid #d5d8ff; }
+    .composer {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; }
     button {
       border: 0;
       border-radius: 10px;
-      padding: 10px 14px;
-      font-size: 14px;
-      cursor: pointer;
       background: var(--accent);
       color: #fff;
+      padding: 9px 14px;
+      cursor: pointer;
+      font-size: 14px;
     }
-    button.secondary {
-      background: var(--accent-soft);
+    button.alt {
+      background: #ddece6;
       color: #134e3a;
     }
-    pre {
-      margin: 0;
-      border-radius: 10px;
-      background: #0d1117;
-      color: #dbe4f0;
-      padding: 14px;
-      overflow: auto;
-      max-height: 440px;
+    button.ghost {
+      background: #eef0f4;
+      color: #2b3a4a;
     }
-    @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+    .options { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .summary {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      padding: 10px;
+      display: none;
+    }
+    .summary h3 { margin: 0 0 8px; font-size: 16px; }
+    .summary ul { margin: 0; padding-left: 18px; }
+    .summary li { margin-bottom: 4px; }
+    .result {
+      border-top: 1px dashed var(--line);
+      margin-top: 10px;
+      padding-top: 10px;
+      display: none;
+    }
+    pre {
+      margin: 10px 0 0;
+      border-radius: 10px;
+      background: #0f172a;
+      color: #dbe4f0;
+      padding: 12px;
+      max-height: 230px;
+      overflow: auto;
+    }
+    .meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 8px;
+    }
+    @media (max-width: 760px) {
+      .row { grid-template-columns: 1fr; }
+      .composer { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <section class="panel">
-      <h1>SkillMD 能力生成器</h1>
-      <p>输入结构化 Brief，生成 Skill 草稿、校验质量，并一键创建发布分支。</p>
+    <section class="card">
+      <h1>SkillMD 对话式生成器</h1>
+      <p>你不用先想清全部字段。我们通过渐进式对话收敛需求，确认后再生成可用 Skill。</p>
     </section>
 
-    <section class="panel">
-      <div class="grid">
-        <div class="full">
-          <label for="business_goal">业务目标</label>
-          <textarea id="business_goal" placeholder="例如：减少客服重复问答处理时间，沉淀可复用 SOP"></textarea>
+    <section class="card">
+      <div class="row">
+        <div>
+          <label for="api_base">后端 API Base（支持内网映射）</label>
+          <input id="api_base" placeholder="https://xxxx.trycloudflare.com" />
         </div>
         <div>
-          <label for="applicable_scenarios">适用场景（每行一条）</label>
-          <textarea id="applicable_scenarios" placeholder="售前问答&#10;需求澄清"></textarea>
-        </div>
-        <div>
-          <label for="trigger_phrases">触发词（每行一条）</label>
-          <textarea id="trigger_phrases" placeholder="写一个报价回复&#10;客户异议处理"></textarea>
-        </div>
-        <div>
-          <label for="input_materials">输入材料（每行一条）</label>
-          <textarea id="input_materials" placeholder="产品资料&#10;历史会话"></textarea>
-        </div>
-        <div>
-          <label for="expected_outputs">输出期望（每行一条）</label>
-          <textarea id="expected_outputs" placeholder="结构化回复模板&#10;行动建议"></textarea>
-        </div>
-        <div>
-          <label for="boundaries">边界（每行一条）</label>
-          <textarea id="boundaries" placeholder="只回答产品范围内问题"></textarea>
-        </div>
-        <div>
-          <label for="forbidden_scenarios">禁用场景（每行一条）</label>
-          <textarea id="forbidden_scenarios" placeholder="法律/医疗建议"></textarea>
-        </div>
-        <div>
-          <label for="example_requests">示例问法（每行一条）</label>
-          <textarea id="example_requests" placeholder="帮我写一段客户跟进话术"></textarea>
-        </div>
-        <div>
-          <label for="api_base">后端 API Base（可填内网映射 URL）</label>
-          <input id="api_base" placeholder="https://your-tunnel.example.com" />
-        </div>
-        <div>
-          <label for="draft_id">Draft ID（校验/发布时可选）</label>
-          <input id="draft_id" placeholder="自动回填" />
-        </div>
-        <div>
-          <label for="target_repo">目标仓库路径（发布时必填）</label>
-          <input id="target_repo" placeholder="D:\skills-registry" />
+          <label for="initial_goal">开场目标（可选）</label>
+          <input id="initial_goal" placeholder="例如：沉淀售前答疑能力" />
         </div>
       </div>
-      <div class="actions">
-        <button id="btnDraft">生成草稿</button>
-        <button id="btnValidate" class="secondary">校验草稿</button>
-        <button id="btnPublish">发布 PR 草稿分支</button>
+      <div class="actions" style="margin-top:8px;">
+        <button id="btnStart">开始对话</button>
+      </div>
+      <div class="meta">
+        <span id="progress">完成度：0%</span>
+        <span id="sessionTag">会话：未开始</span>
       </div>
     </section>
 
-    <section class="panel">
-      <pre id="output">等待操作...</pre>
+    <section class="card">
+      <div id="chat" class="chat"></div>
+      <div id="options" class="options"></div>
+      <div class="composer">
+        <textarea id="answer" placeholder="在这里回答当前问题。若不确定可以直接输入：我不确定"></textarea>
+        <div class="actions">
+          <button id="btnSend">发送回答</button>
+          <button id="btnSummary" class="alt">查看摘要</button>
+        </div>
+      </div>
+
+      <div id="summary" class="summary">
+        <h3>摘要确认</h3>
+        <ul id="summaryList"></ul>
+        <div class="actions" style="margin-top:10px;">
+          <button id="btnConfirm">确认并生成</button>
+        </div>
+      </div>
+
+      <div id="result" class="result">
+        <div class="actions">
+          <button id="btnDownload" class="alt">下载 SKILL.md</button>
+          <button id="btnValidate" class="ghost">校验草稿</button>
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <div>
+            <label for="target_repo">目标仓库路径（发布时）</label>
+            <input id="target_repo" placeholder="D:\\skills-registry" />
+          </div>
+          <div style="display:flex; align-items:flex-end;">
+            <button id="btnPublish">发布 PR 草稿分支</button>
+          </div>
+        </div>
+        <pre id="resultLog">等待生成...</pre>
+      </div>
     </section>
   </div>
 
   <script>
-    const output = document.getElementById("output");
-    let lastDraft = null;
     const API_BASE_STORAGE_KEY = "skillmd_api_base";
+    const state = {
+      sessionId: null,
+      draftId: null,
+      specName: null,
+      nextQuestion: null,
+      isReady: false,
+    };
+
+    const chatEl = document.getElementById("chat");
+    const optionsEl = document.getElementById("options");
+    const summaryEl = document.getElementById("summary");
+    const summaryListEl = document.getElementById("summaryList");
+    const resultEl = document.getElementById("result");
+    const resultLogEl = document.getElementById("resultLog");
 
     function normalizeBaseUrl(value) {
-      const v = (value || "").trim().replace(/\/+$/, "");
-      return v;
+      return (value || "").trim().replace(/\/+$/, "");
     }
 
     function loadApiBase() {
@@ -183,98 +243,212 @@
       return normalizeBaseUrl(window.location.origin);
     }
 
+    function persistApiBase() {
+      const base = normalizeBaseUrl(document.getElementById("api_base").value);
+      if (base) localStorage.setItem(API_BASE_STORAGE_KEY, base);
+    }
+
     function apiUrl(path) {
       const base = normalizeBaseUrl(document.getElementById("api_base").value || window.location.origin);
       return `${base}${path}`;
     }
 
-    function readLines(id) {
-      return document.getElementById(id).value
-        .split(/\r?\n/)
-        .map((v) => v.trim())
-        .filter(Boolean);
-    }
-
-    function buildBrief() {
-      return {
-        business_goal: document.getElementById("business_goal").value.trim(),
-        applicable_scenarios: readLines("applicable_scenarios"),
-        trigger_phrases: readLines("trigger_phrases"),
-        input_materials: readLines("input_materials"),
-        expected_outputs: readLines("expected_outputs"),
-        boundaries: readLines("boundaries"),
-        forbidden_scenarios: readLines("forbidden_scenarios"),
-        example_requests: readLines("example_requests"),
-        language: "zh-CN"
-      };
-    }
-
-    async function postJson(url, payload) {
-      const res = await fetch(apiUrl(url), {
-        method: "POST",
+    async function requestJson(path, method, payload) {
+      const res = await fetch(apiUrl(path), {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: payload ? JSON.stringify(payload) : undefined,
       });
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(JSON.stringify(data, null, 2));
-      }
+      if (!res.ok) throw new Error(JSON.stringify(data, null, 2));
       return data;
     }
 
-    function print(data) {
-      output.textContent = JSON.stringify(data, null, 2);
+    function addMessage(role, text) {
+      if (!text) return;
+      const div = document.createElement("div");
+      div.className = `msg ${role}`;
+      div.textContent = text;
+      chatEl.appendChild(div);
+      chatEl.scrollTop = chatEl.scrollHeight;
     }
 
-    function persistApiBase() {
-      const base = normalizeBaseUrl(document.getElementById("api_base").value);
-      if (base) {
-        localStorage.setItem(API_BASE_STORAGE_KEY, base);
+    function setMeta(progress, sessionId) {
+      document.getElementById("progress").textContent = `完成度：${progress || 0}%`;
+      document.getElementById("sessionTag").textContent = sessionId ? `会话：${sessionId}` : "会话：未开始";
+    }
+
+    function setOptions(options) {
+      optionsEl.innerHTML = "";
+      if (!Array.isArray(options) || options.length === 0) return;
+      options.forEach((opt) => {
+        const btn = document.createElement("button");
+        btn.className = "ghost";
+        btn.textContent = opt;
+        btn.addEventListener("click", () => {
+          document.getElementById("answer").value = opt;
+        });
+        optionsEl.appendChild(btn);
+      });
+    }
+
+    function logResult(data) {
+      resultLogEl.textContent = JSON.stringify(data, null, 2);
+    }
+
+    function ensureSession() {
+      if (!state.sessionId) {
+        throw new Error("请先点击“开始对话”。");
       }
+    }
+
+    function renderTurn(res) {
+      if (res.assistant_message) addMessage("assistant", res.assistant_message);
+      if (res.next_question) {
+        state.nextQuestion = res.next_question;
+        addMessage("assistant", `问题：${res.next_question}`);
+      }
+      state.isReady = Boolean(res.is_ready_for_summary);
+      setMeta(res.progress || 0, res.session_id || state.sessionId);
+      setOptions(res.options || []);
+      if (state.isReady) {
+        fetchSummary().catch((err) => addMessage("assistant", `摘要获取失败：${err.message || err}`));
+      }
+    }
+
+    async function startConversation() {
+      persistApiBase();
+      summaryEl.style.display = "none";
+      resultEl.style.display = "none";
+      chatEl.innerHTML = "";
+      optionsEl.innerHTML = "";
+      state.draftId = null;
+      const initialGoal = document.getElementById("initial_goal").value.trim();
+      const res = await requestJson("/api/conversations/start", "POST", {
+        language: "zh-CN",
+        initial_goal: initialGoal || undefined,
+      });
+      state.sessionId = res.session_id;
+      renderTurn(res);
+    }
+
+    async function sendAnswer() {
+      ensureSession();
+      const answer = document.getElementById("answer").value.trim();
+      if (!answer) {
+        addMessage("assistant", "请先输入回答。若不确定可输入：我不确定");
+        return;
+      }
+      document.getElementById("answer").value = "";
+      addMessage("user", answer);
+      const res = await requestJson("/api/conversations/answer", "POST", {
+        session_id: state.sessionId,
+        answer,
+      });
+      renderTurn(res);
+    }
+
+    async function fetchSummary() {
+      ensureSession();
+      const res = await fetch(apiUrl(`/api/conversations/${encodeURIComponent(state.sessionId)}/summary`));
+      const data = await res.json();
+      if (!res.ok) throw new Error(JSON.stringify(data, null, 2));
+
+      summaryListEl.innerHTML = "";
+      const brief = data.summary_brief || {};
+      const lines = [
+        ["业务目标", brief.business_goal || ""],
+        ["适用场景", (brief.applicable_scenarios || []).join("；")],
+        ["触发词", (brief.trigger_phrases || []).join("；")],
+        ["输入材料", (brief.input_materials || []).join("；")],
+        ["输出期望", (brief.expected_outputs || []).join("；")],
+        ["边界", (brief.boundaries || []).join("；")],
+        ["禁用场景", (brief.forbidden_scenarios || []).join("；")],
+        ["示例问法", (brief.example_requests || []).join("；")],
+      ];
+      lines.forEach(([label, value]) => {
+        const li = document.createElement("li");
+        li.textContent = `${label}：${value || "(待补充)"}`;
+        summaryListEl.appendChild(li);
+      });
+
+      if (Array.isArray(data.missing_items) && data.missing_items.length > 0) {
+        const li = document.createElement("li");
+        li.textContent = `缺失项：${data.missing_items.join("，")}`;
+        summaryListEl.appendChild(li);
+      }
+
+      summaryEl.style.display = "block";
+      addMessage("assistant", "这是当前摘要。确认后我会生成草稿并给出下载。")
+    }
+
+    async function confirmGenerate() {
+      ensureSession();
+      const res = await requestJson(`/api/conversations/${encodeURIComponent(state.sessionId)}/confirm`, "POST", {
+        confirmed: true,
+      });
+      state.draftId = res.draft_id;
+      state.specName = res.spec_name;
+      resultEl.style.display = "block";
+      logResult(res);
+      addMessage("assistant", `草稿已生成：${res.draft_id}`);
+    }
+
+    function downloadSkill() {
+      if (!state.draftId) {
+        addMessage("assistant", "请先完成生成。")
+        return;
+      }
+      window.open(apiUrl(`/api/skills/${encodeURIComponent(state.draftId)}/download`), "_blank");
+    }
+
+    async function validateDraft() {
+      if (!state.draftId) {
+        addMessage("assistant", "请先完成生成。")
+        return;
+      }
+      const res = await requestJson("/api/skills/validate", "POST", { draft_id: state.draftId });
+      logResult(res);
+      addMessage("assistant", `校验完成，评分：${res.score}`);
+    }
+
+    async function publishDraft() {
+      if (!state.draftId) {
+        addMessage("assistant", "请先完成生成。")
+        return;
+      }
+      const targetRepo = document.getElementById("target_repo").value.trim();
+      const res = await requestJson("/api/skills/publish-pr", "POST", {
+        draft_id: state.draftId,
+        target_repo: targetRepo,
+        base_branch: "main",
+      });
+      logResult(res);
+      addMessage("assistant", `发布完成：${res.branch}`);
     }
 
     document.getElementById("api_base").value = loadApiBase();
     document.getElementById("api_base").addEventListener("blur", persistApiBase);
+    setMeta(0, null);
 
-    document.getElementById("btnDraft").addEventListener("click", async () => {
-      try {
-        const data = await postJson("/api/skills/draft", buildBrief());
-        persistApiBase();
-        lastDraft = data;
-        if (data.draft_id) {
-          document.getElementById("draft_id").value = data.draft_id;
-        }
-        print(data);
-      } catch (err) {
-        output.textContent = String(err.message || err);
-      }
+    document.getElementById("btnStart").addEventListener("click", async () => {
+      try { await startConversation(); } catch (err) { addMessage("assistant", String(err.message || err)); }
     });
-
+    document.getElementById("btnSend").addEventListener("click", async () => {
+      try { await sendAnswer(); } catch (err) { addMessage("assistant", String(err.message || err)); }
+    });
+    document.getElementById("btnSummary").addEventListener("click", async () => {
+      try { await fetchSummary(); } catch (err) { addMessage("assistant", String(err.message || err)); }
+    });
+    document.getElementById("btnConfirm").addEventListener("click", async () => {
+      try { await confirmGenerate(); } catch (err) { addMessage("assistant", String(err.message || err)); }
+    });
+    document.getElementById("btnDownload").addEventListener("click", downloadSkill);
     document.getElementById("btnValidate").addEventListener("click", async () => {
-      try {
-        const draftId = document.getElementById("draft_id").value.trim();
-        const payload = draftId
-          ? { draft_id: draftId }
-          : (lastDraft ? lastDraft : {});
-        const data = await postJson("/api/skills/validate", payload);
-        persistApiBase();
-        print(data);
-      } catch (err) {
-        output.textContent = String(err.message || err);
-      }
+      try { await validateDraft(); } catch (err) { addMessage("assistant", String(err.message || err)); }
     });
-
     document.getElementById("btnPublish").addEventListener("click", async () => {
-      try {
-        const draftId = document.getElementById("draft_id").value.trim();
-        const targetRepo = document.getElementById("target_repo").value.trim();
-        const payload = { draft_id: draftId, target_repo: targetRepo, base_branch: "main" };
-        const data = await postJson("/api/skills/publish-pr", payload);
-        persistApiBase();
-        print(data);
-      } catch (err) {
-        output.textContent = String(err.message || err);
-      }
+      try { await publishDraft(); } catch (err) { addMessage("assistant", String(err.message || err)); }
     });
   </script>
 </body>
