@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkillMD 能力生成器</title>
+  <style>
+    body { font-family: "Segoe UI", "PingFang SC", sans-serif; margin: 0; background: #f6f3ea; color: #1f2933; }
+    .wrap { max-width: 960px; margin: 24px auto; padding: 0 16px; display: grid; gap: 14px; }
+    .card { background: #fffdf8; border: 1px solid #ddd5c3; border-radius: 12px; padding: 16px; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .full { grid-column: 1 / -1; }
+    label { display: block; font-size: 12px; color: #556; margin-bottom: 4px; }
+    input, textarea { width: 100%; box-sizing: border-box; border: 1px solid #d9d5ca; border-radius: 8px; padding: 9px; }
+    textarea { min-height: 78px; }
+    button { border: 0; border-radius: 8px; padding: 10px 14px; background: #0b6e4f; color: #fff; cursor: pointer; margin-right: 8px; }
+    pre { background: #101826; color: #dbe4f0; border-radius: 8px; padding: 12px; max-height: 420px; overflow: auto; }
+    @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h2>SkillMD 能力生成器（Vercel 前端）</h2>
+      <p>支持配置后端 API Base，适配本地后端 + Cloudflare Tunnel 联调。</p>
+    </div>
+
+    <div class="card">
+      <div class="grid">
+        <div class="full">
+          <label>后端 API Base（例如 https://xxxx.trycloudflare.com）</label>
+          <input id="api_base" placeholder="https://xxxx.trycloudflare.com" />
+        </div>
+        <div class="full">
+          <label>业务目标</label>
+          <textarea id="business_goal" placeholder="沉淀团队重复能力，减少重复劳动"></textarea>
+        </div>
+        <div><label>适用场景（每行一条）</label><textarea id="applicable_scenarios"></textarea></div>
+        <div><label>触发词（每行一条）</label><textarea id="trigger_phrases"></textarea></div>
+        <div><label>输入材料（每行一条）</label><textarea id="input_materials"></textarea></div>
+        <div><label>输出期望（每行一条）</label><textarea id="expected_outputs"></textarea></div>
+        <div><label>边界（每行一条）</label><textarea id="boundaries"></textarea></div>
+        <div><label>禁用场景（每行一条）</label><textarea id="forbidden_scenarios"></textarea></div>
+        <div class="full"><label>示例问法（每行一条）</label><textarea id="example_requests"></textarea></div>
+        <div><label>Draft ID</label><input id="draft_id" placeholder="可留空" /></div>
+        <div><label>目标仓库路径（发布时）</label><input id="target_repo" placeholder="D:\\skills-registry" /></div>
+      </div>
+      <div style="margin-top:10px">
+        <button id="btnDraft">生成草稿</button>
+        <button id="btnValidate">校验草稿</button>
+        <button id="btnPublish">发布 PR 草稿分支</button>
+      </div>
+    </div>
+
+    <div class="card"><pre id="output">等待操作...</pre></div>
+  </div>
+
+  <script>
+    const API_KEY = "skillmd_api_base";
+    let lastDraft = null;
+
+    function normalize(v) { return (v || "").trim().replace(/\/+$/, ""); }
+    function readLines(id) {
+      return document.getElementById(id).value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    }
+    function loadApiBase() {
+      const params = new URLSearchParams(window.location.search);
+      const fromQuery = normalize(params.get("api_base"));
+      if (fromQuery) localStorage.setItem(API_KEY, fromQuery);
+      return fromQuery || normalize(localStorage.getItem(API_KEY)) || normalize(window.location.origin);
+    }
+    function persistApiBase() {
+      const v = normalize(document.getElementById("api_base").value);
+      if (v) localStorage.setItem(API_KEY, v);
+    }
+    function apiUrl(path) {
+      const base = normalize(document.getElementById("api_base").value || window.location.origin);
+      return `${base}${path}`;
+    }
+    async function postJson(path, payload) {
+      const res = await fetch(apiUrl(path), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(JSON.stringify(data, null, 2));
+      return data;
+    }
+    function print(data) {
+      document.getElementById("output").textContent = JSON.stringify(data, null, 2);
+    }
+    function brief() {
+      return {
+        business_goal: document.getElementById("business_goal").value.trim(),
+        applicable_scenarios: readLines("applicable_scenarios"),
+        trigger_phrases: readLines("trigger_phrases"),
+        input_materials: readLines("input_materials"),
+        expected_outputs: readLines("expected_outputs"),
+        boundaries: readLines("boundaries"),
+        forbidden_scenarios: readLines("forbidden_scenarios"),
+        example_requests: readLines("example_requests"),
+        language: "zh-CN"
+      };
+    }
+
+    document.getElementById("api_base").value = loadApiBase();
+    document.getElementById("api_base").addEventListener("blur", persistApiBase);
+
+    document.getElementById("btnDraft").addEventListener("click", async () => {
+      try {
+        persistApiBase();
+        const data = await postJson("/api/skills/draft", brief());
+        lastDraft = data;
+        if (data.draft_id) document.getElementById("draft_id").value = data.draft_id;
+        print(data);
+      } catch (e) { print(String(e.message || e)); }
+    });
+
+    document.getElementById("btnValidate").addEventListener("click", async () => {
+      try {
+        persistApiBase();
+        const draftId = document.getElementById("draft_id").value.trim();
+        const payload = draftId ? { draft_id: draftId } : (lastDraft || {});
+        print(await postJson("/api/skills/validate", payload));
+      } catch (e) { print(String(e.message || e)); }
+    });
+
+    document.getElementById("btnPublish").addEventListener("click", async () => {
+      try {
+        persistApiBase();
+        const payload = {
+          draft_id: document.getElementById("draft_id").value.trim(),
+          target_repo: document.getElementById("target_repo").value.trim(),
+          base_branch: "main"
+        };
+        print(await postJson("/api/skills/publish-pr", payload));
+      } catch (e) { print(String(e.message || e)); }
+    });
+  </script>
+</body>
+</html>
