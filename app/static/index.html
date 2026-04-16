@@ -240,7 +240,11 @@
       }
       const fromStorage = normalizeBaseUrl(localStorage.getItem(API_BASE_STORAGE_KEY) || "");
       if (fromStorage) return fromStorage;
-      return normalizeBaseUrl(window.location.origin);
+      const host = (window.location.hostname || "").toLowerCase();
+      if (host === "127.0.0.1" || host === "localhost") {
+        return normalizeBaseUrl(window.location.origin);
+      }
+      return "";
     }
 
     function persistApiBase() {
@@ -249,7 +253,10 @@
     }
 
     function apiUrl(path) {
-      const base = normalizeBaseUrl(document.getElementById("api_base").value || window.location.origin);
+      const base = normalizeBaseUrl(document.getElementById("api_base").value);
+      if (!base) {
+        throw new Error("请先填写“后端 API Base”（例如你的 Cloudflare Tunnel 地址）再开始对话。");
+      }
       return `${base}${path}`;
     }
 
@@ -259,6 +266,20 @@
         headers: { "Content-Type": "application/json" },
         body: payload ? JSON.stringify(payload) : undefined,
       });
+      const contentType = (res.headers.get("content-type") || "").toLowerCase();
+
+      if (!contentType.includes("application/json")) {
+        const text = await res.text();
+        throw new Error(
+          [
+            "后端返回的不是 JSON，通常表示 API 地址不对或服务未启动。",
+            `请求地址：${apiUrl(path)}`,
+            `状态码：${res.status}`,
+            `响应片段：${(text || "").slice(0, 140)}`,
+          ].join("\n")
+        );
+      }
+
       const data = await res.json();
       if (!res.ok) throw new Error(JSON.stringify(data, null, 2));
       return data;
@@ -430,6 +451,9 @@
     document.getElementById("api_base").value = loadApiBase();
     document.getElementById("api_base").addEventListener("blur", persistApiBase);
     setMeta(0, null);
+    if (!document.getElementById("api_base").value) {
+      addMessage("assistant", "请先填写“后端 API Base”（Cloudflare Tunnel 地址），再点击“开始对话”。");
+    }
 
     document.getElementById("btnStart").addEventListener("click", async () => {
       try { await startConversation(); } catch (err) { addMessage("assistant", String(err.message || err)); }
