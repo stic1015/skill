@@ -7,14 +7,14 @@ from pathlib import Path
 from typing import Any
 
 from .conversation import (
-    SLOT_OPTIONS,
-    SLOT_QUESTIONS,
+    SLOT_ORDER,
     completeness,
     current_slot,
     default_slots,
     looks_uncertain,
     parse_slot_value,
 )
+from .conversation_agent import ConversationAgent
 from .dedupe import SimilarityEngine
 from .git_publisher import GitPublisher
 from .models import ModelValidationError, SkillBriefV1
@@ -33,6 +33,7 @@ class SkillDraftService:
         spec_builder: SkillSpecBuilder | None = None,
         publisher: GitPublisher | None = None,
         session_store: DraftStore | None = None,
+        conversation_agent: ConversationAgent | None = None,
     ):
         self.store = store
         self.registry_path = Path(registry_path)
@@ -40,6 +41,7 @@ class SkillDraftService:
         self.spec_builder = spec_builder or SkillSpecBuilder()
         self.publisher = publisher or GitPublisher()
         self.session_store = session_store or DraftStore(self.store.root_dir.parent / "sessions")
+        self.conversation_agent = conversation_agent or ConversationAgent()
 
     @classmethod
     def from_environment(cls, base_dir: str | Path) -> "SkillDraftService":
@@ -172,16 +174,7 @@ class SkillDraftService:
             return self._conversation_turn(session)
 
         if looks_uncertain(answer):
-            options = SLOT_OPTIONS.get(slot, [])[:3]
-            return {
-                "session_id": session_id,
-                "assistant_message": "没问题，我们先用候选项帮你快速收敛。选一个最接近的，或者直接改写。",
-                "next_question": SLOT_QUESTIONS[slot],
-                "options": options,
-                "current_slot": slot,
-                "progress": completeness(slots),
-                "is_ready_for_summary": False,
-            }
+            return self._conversation_turn(session, uncertain=True)
 
         parsed = parse_slot_value(slot, answer)
         slots[slot] = parsed
@@ -198,7 +191,7 @@ class SkillDraftService:
     def get_conversation_summary(self, session_id: str) -> dict[str, Any]:
         session = self.session_store.load(session_id)
         slots = session.get("slots", default_slots())
-        missing = [key for key in SLOT_QUESTIONS if not self._slot_has_value(key, slots.get(key))]
+        missing = [key for key in SLOT_ORDER if not self._slot_has_value(key, slots.get(key))]
 
         summary_brief = {
             "business_goal": slots.get("business_goal", ""),
@@ -276,30 +269,29 @@ class SkillDraftService:
         filename = f"{safe_name}-skill.md"
         return filename, content
 
-    def _conversation_turn(self, session: dict[str, Any], intro: bool = False) -> dict[str, Any]:
+    def _conversation_turn(
+        self,
+        session: dict[str, Any],
+        intro: bool = False,
+        uncertain: bool = False,
+    ) -> dict[str, Any]:
         slots = session.get("slots", default_slots())
         slot = current_slot(slots)
         progress = completeness(slots)
-
-        if slot is None:
-            return {
-                "session_id": session["session_id"],
-                "assistant_message": "信息已经收集完整。请查看摘要并确认生成。",
-                "next_question": None,
-                "current_slot": None,
-                "is_ready_for_summary": True,
-                "progress": progress,
-            }
-
-        intro_text = "我们一步一步来，我每次只问一个关键问题。"
-        message = intro_text if intro else "收到，我们继续下一步。"
+        turn = self.conversation_agent.generate_turn(
+            slots=slots,
+            history=session.get("history", []),
+            current_slot=slot,
+            intro=intro,
+            uncertain=uncertain,
+        )
         return {
             "session_id": session["session_id"],
-            "assistant_message": message,
-            "next_question": SLOT_QUESTIONS[slot],
-            "options": None,
+            "assistant_message": turn.get("assistant_message", ""),
+            "next_question": turn.get("next_question"),
+            "options": turn.get("options", []),
             "current_slot": slot,
-            "is_ready_for_summary": False,
+            "is_ready_for_summary": slot is None,
             "progress": progress,
         }
 

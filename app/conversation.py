@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import re
 from typing import Any
@@ -129,11 +129,10 @@ def parse_slot_value(slot: str, answer: str) -> str | list[str]:
     clean = answer.strip()
     if slot == "business_goal":
         return clean
-    parts = re.split(r"[\n,，;；、]+", clean)
+    parts = re.split(r"[\n,，；;]+", clean)
     items: list[str] = []
     for part in parts:
         candidate = part.strip()
         if candidate and candidate not in items:
             items.append(candidate)
     return items
-
