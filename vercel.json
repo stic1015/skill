@@ -1,0 +1,13 @@
+{
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/app/static/index.html"
+    },
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/app/static/index.html"
+    }
+  ]
+}
+
